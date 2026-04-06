@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CAPSTONE QR MAKER</title>
+<script src="https://unpkg.com/qrcode-generator@1.4.4/qrcode.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root { --accent: #AD1457; }
+
+body {
+  min-height: 100vh;
+  font-family: -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif;
+  background: linear-gradient(160deg, #FFF0F5 0%, #FFE4F0 50%, #E8F5E9 100%);
+  transition: background 0.7s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 16px 40px;
+  gap: 14px;
+}
+
+header { text-align: center; }
+
+h1 {
+  font-size: 1.6rem;
+  font-weight: 900;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--accent);
+  transition: color 0.5s;
+}
+.subtitle { font-size: 0.8rem; color: #999; margin-top: 4px; letter-spacing: 0.5px; }
+
+/* 나무 선택 버튼 */
+.tree-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  justify-content: center;
+  max-width: 620px;
+}
+.tree-btn {
+  padding: 8px 16px;
+  border: 2px solid #ddd;
+  border-radius: 22px;
+  cursor: pointer;
+  font-size: 0.84rem;
+  font-weight: 600;
+  background: rgba(255,255,255,0.85);
+  color: #555;
+  transition: all 0.25s;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+  backdrop-filter: blur(4px);
+}
+.tree-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 14px rgba(0,0,0,0.12); }
+.tree-btn.active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+  transform: translateY(-1px);
+}
+
+/* 입력 영역 */
+.input-section { width: 100%; max-width: 560px; }
+.input-group {
+  display: flex;
+  gap: 7px;
+  background: rgba(255,255,255,0.75);
+  border-radius: 13px;
+  padding: 5px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  backdrop-filter: blur(8px);
+}
+#url-input {
+  flex: 1;
+  padding: 10px 14px;
+  border: none;
+  border-radius: 9px;
+  font-size: 0.9rem;
+  outline: none;
+  background: transparent;
+  color: #333;
+}
+#gen-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 9px;
+  background: var(--accent);
+  color: white;
+  font-size: 0.86rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.22s;
+  white-space: nowrap;
+  letter-spacing: 0.5px;
+}
+#gen-btn:hover { filter: brightness(1.12); transform: translateY(-1px); }
+#gen-btn:active { transform: scale(0.97); }
+
+/* 캔버스 */
+.canvas-wrap {
+  position: relative;
+  cursor: pointer;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 10px 36px rgba(0,0,0,0.16);
+  transition: box-shadow 0.3s;
+}
+.canvas-wrap:hover { box-shadow: 0 14px 46px rgba(0,0,0,0.2); }
+#tree-canvas { display: block; border-radius: 18px; }
+
+.mode-badge {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.42);
+  color: white;
+  padding: 5px 14px;
+  border-radius: 14px;
+  font-size: 0.78rem;
+  backdrop-filter: blur(6px);
+  pointer-events: none;
+  white-space: nowrap;
+  transition: opacity 0.3s;
+}
+
+.loading-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(255,255,255,0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 18px;
+  backdrop-filter: blur(4px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s;
+}
+.loading-overlay.show { opacity: 1; pointer-events: all; }
+.spinner {
+  width: 38px; height: 38px;
+  border: 4px solid #ddd;
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* 하단 컨트롤 */
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  max-width: 580px;
+  width: 100%;
+}
+.grass-ctrl {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255,255,255,0.75);
+  border-radius: 12px;
+  padding: 7px 14px;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+}
+.grass-ctrl label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #555;
+  white-space: nowrap;
+}
+#grass-color {
+  width: 34px; height: 28px;
+  border: none; border-radius: 6px;
+  cursor: pointer; padding: 2px;
+  background: transparent;
+}
+#grass-reset {
+  font-size: 0.75rem;
+  color: #999;
+  background: none;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 3px 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+#grass-reset:hover { color: var(--accent); border-color: var(--accent); }
+
+#dl-btn {
+  padding: 9px 18px;
+  border: 2px solid var(--accent);
+  border-radius: 11px;
+  background: transparent;
+  color: var(--accent);
+  font-size: 0.83rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.22s;
+}
+#dl-btn:hover { background: var(--accent); color: white; transform: translateY(-1px); }
+
+.hint {
+  font-size: 0.78rem;
+  color: #bbb;
+  text-align: center;
+  letter-spacing: 0.3px;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>CAPSTONE QR MAKER</h1>
+  <p class="subtitle">나무 모양 QR 코드 생성기</p>
+</header>
+
+<div class="tree-selector">
+  <button class="tree-btn active" data-tree="cherry">🌸 벚꽃나무</button>
+  <button class="tree-btn" data-tree="pine">🌲 소나무</button>
+  <button class="tree-btn" data-tree="maple">🍁 단풍나무</button>
+  <button class="tree-btn" data-tree="ginkgo">🍂 은행나무</button>
+  <button class="tree-btn" data-tree="hydrangea">💜 수국나무</button>
+</div>
+
+<div class="input-section">
+  <div class="input-group">
+    <input type="text" id="url-input"
+      value="https://github.com/enzomanuelmangano/demos"
+      placeholder="URL 또는 텍스트를 입력하세요">
+    <button id="gen-btn">QR 생성</button>
+  </div>
+</div>
+
+<div class="canvas-wrap" id="canvas-wrap">
+  <canvas id="tree-canvas"></canvas>
+  <div class="loading-overlay" id="loading"><div class="spinner"></div></div>
+  <div class="mode-badge" id="mode-badge">🌳 3D 나무</div>
+</div>
+
+<div class="controls">
+  <div class="grass-ctrl">
+    <label>🌿 잔디 색상</label>
+    <input type="color" id="grass-color" value="#81C784">
+    <button id="grass-reset">기본값</button>
+  </div>
+  <button id="dl-btn">⬇ 이미지 저장</button>
+  <p class="hint">캔버스 클릭 → 3D 나무 ↔ QR 코드 전환</p>
+</div>
+
+<script>
+'use strict';
+
+// ═══════════════════════════════════════════════════════════════
+// 테마 정의
+// ═══════════════════════════════════════════════════════════════
+const THEMES = {
+  cherry: {
+    accent: '#AD1457',
+    bg: 'linear-gradient(160deg,#FFF0F5 0%,#FFE4F0 50%,#E8F5E9 100%)',
+    bgStops: ['#FFF0F5','#FFE4F0','#E8F5E9'],
+    canopyVars: ['#FFB7C5','#FF9FB5','#FFC8D5','#FFD0DC','#FFAAC0'],
+    trunkTop: '#8B5E3C', trunkL: '#6B4828', trunkR: '#553B20',
+    groundTop: '#C8E6C9', groundL: '#A8CCA8', groundR: '#8CB88C',
+    grassDefault: '#81C784',
+    qrFill: '#AD1457', qrBg: '#FFF5F8',
+  },
+  pine: {
+    accent: '#1B5E20',
+    bg: 'linear-gradient(160deg,#E8F5E9 0%,#C8E6C9 50%,#EFEBE9 100%)',
+    bgStops: ['#E8F5E9','#C8E6C9','#EFEBE9'],
+    canopyVars: ['#2E7D32','#388E3C','#1B5E20','#33691E','#43A047'],
+    trunkTop: '#6D4C41', trunkL: '#5C3E35', trunkR: '#4B3028',
+    groundTop: '#D7CCC8', groundL: '#BCAAA4', groundR: '#A49088',
+    grassDefault: '#66BB6A',
+    qrFill: '#1B5E20', qrBg: '#F1F8E9',
+  },
+  maple: {
+    accent: '#C62828',
+    bg: 'linear-gradient(160deg,#FFF3E0 0%,#FFCCBC 50%,#FBE9E7 100%)',
+    bgStops: ['#FFF3E0','#FFCCBC','#FBE9E7'],
+    canopyVars: ['#E53935','#D32F2F','#F44336','#C62828','#EF5350'],
+    trunkTop: '#4E342E', trunkL: '#3E2922', trunkR: '#302018',
+    groundTop: '#FFE0B2', groundL: '#F5C990', groundR: '#E8B575',
+    grassDefault: '#FF7043',
+    qrFill: '#B71C1C', qrBg: '#FFF5F5',
+  },
+  ginkgo: {
+    accent: '#F57F17',
+    bg: 'linear-gradient(160deg,#FFFDE7 0%,#FFF9C4 50%,#EFEBE9 100%)',
+    bgStops: ['#FFFDE7','#FFF9C4','#EFEBE9'],
+    canopyVars: ['#FFC107','#FFD600','#FFCA28','#FF8F00','#FFB300'],
+    trunkTop: '#6D4C41', trunkL: '#5C3E35', trunkR: '#4B3028',
+    groundTop: '#D7CCC8', groundL: '#BCAAA4', groundR: '#A49088',
+    grassDefault: '#CDDC39',
+    qrFill: '#F57F17', qrBg: '#FFFDE7',
+  },
+  hydrangea: {
+    accent: '#7B1FA2',
+    bg: 'linear-gradient(160deg,#F3E5F5 0%,#E1BEE7 50%,#EDE7F6 100%)',
+    bgStops: ['#F3E5F5','#E1BEE7','#EDE7F6'],
+    canopyVars: ['#CE93D8','#BA68C8','#AB47BC','#E1BEE7','#9C27B0'],
+    trunkTop: '#6D4C41', trunkL: '#5C3E35', trunkR: '#4B3028',
+    groundTop: '#E1BEE7', groundL: '#C9A8CE', groundR: '#B492B8',
+    grassDefault: '#AB47BC',
+    qrFill: '#6A1B9A', qrBg: '#F5F0FF',
+  },
+};
+
+// ═══════════════════════════════════════════════════════════════
+// 캔버스 초기화
+// ═══════════════════════════════════════════════════════════════
+const canvas  = document.getElementById('tree-canvas');
+const ctx     = canvas.getContext('2d');
+const dpr     = Math.min(window.devicePixelRatio || 1, 2);
+const CSS_W   = Math.min(560, window.innerWidth - 32);
+const CSS_H   = CSS_W; // 정사각형
+canvas.style.width  = CSS_W + 'px';
+canvas.style.height = CSS_H + 'px';
+canvas.width  = CSS_W * dpr;
+canvas.height = CSS_H * dpr;
+ctx.scale(dpr, dpr);
+const W = CSS_W, H = CSS_H;
+
+// ═══════════════════════════════════════════════════════════════
+// 상태
+// ═══════════════════════════════════════════════════════════════
+let currentTheme   = 'cherry';
+let qrMatrix       = null;
+let allBlocks      = null;
+let treePosSet     = null;
+let viewMode       = '3d';
+let fadeProgress   = 0;
+let fadeTarget     = 0;
+let animId         = null;
+let offTree        = null;
+let offFlat        = null;
+let customGrass    = null;   // null = 테마 기본값 사용
+
+// 드래그 회전
+let rotAngle       = 0;      // 현재 회전 각도 (라디안)
+let isDragging     = false;
+let lastDragX      = 0;
+let lastDragY      = 0;
+const DRAG_SENS    = 0.010;  // 픽셀당 라디안 (좌우)
+const TILT_SENS    = 0.006;  // 픽셀당 fadeProgress 변화 (상하)
+
+// 실시간 입력
+let realtimeTimer  = null;
+
+// ═══════════════════════════════════════════════════════════════
+// 유틸리티
+// ═══════════════════════════════════════════════════════════════
+function hexToRgb(hex) {
+  const n = parseInt(hex.replace('#',''), 16);
+  return [(n>>16)&255, (n>>8)&255, n&255];
+}
+function rgbToHex(r, g, b) {
+  return '#' + [r,g,b]
+    .map(v => Math.min(255,Math.max(0,Math.round(v))).toString(16).padStart(2,'0'))
+    .join('');
+}
+function shadeHex(hex, f) {
+  const [r,g,b] = hexToRgb(hex);
+  return rgbToHex(r*f, g*f, b*f);
+}
+function lerpColor(c1, c2, t) {
+  const [r1,g1,b1] = hexToRgb(c1), [r2,g2,b2] = hexToRgb(c2);
+  return rgbToHex(r1+(r2-r1)*t, g1+(g2-g1)*t, b1+(b2-b1)*t);
+}
+function lerp(a, b, t) { return a + (b-a)*t; }
+function clamp(v,lo,hi) { return Math.max(lo, Math.min(hi, v)); }
+function easeInOut(t) {
+  return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2,3)/2;
+}
+function seededRand(x, z, s) {
+  const v = Math.sin(x*127.1 + z*311.7 + (s||1)*74.13) * 43758.5453;
+  return v - Math.floor(v);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// QR 매트릭스 생성
+// ═══════════════════════════════════════════════════════════════
+function generateMatrix(text) {
+  for (let type = 0; type <= 20; type++) {
+    try {
+      const qr = qrcode(type, 'M');
+      qr.addData(text);
+      qr.make();
+      const N = qr.getModuleCount();
+      const m = [];
+      for (let r = 0; r < N; r++) {
+        m[r] = [];
+        for (let c = 0; c < N; c++) m[r][c] = qr.isDark(r, c);
+      }
+      return m;
+    } catch(e) { if (type === 20) throw e; }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 블록 생성
+// ═══════════════════════════════════════════════════════════════
+const TRUNK_H  = 14;   // 더 높은 기둥
+const MAX_DOME = 10;   // 더 높은 캐노피
+const MAX_Y    = TRUNK_H + MAX_DOME + 7; // 최대 높이 (jitter + 가지 보너스 포함)
+
+function generateBlocks(matrix) {
+  const N      = matrix.length;
+  const cx     = (N-1)/2, cz = (N-1)/2;
+  const TRUNK_R  = N * 0.07;
+  const CANOPY_R = N * 0.45;
+  const blocks   = [];
+
+  for (let z = 0; z < N; z++) {
+    for (let x = 0; x < N; x++) {
+      const dark    = matrix[z][x];
+      const dx      = x-cx, dz = z-cz;
+      const dist    = Math.sqrt(dx*dx + dz*dz);
+      const inTrunk = dist < TRUNK_R;
+      const inCan   = dist < CANOPY_R;
+
+      // 지면
+      blocks.push({ x, z, y: 0, type: inTrunk ? (dark?'trunk':'ground') : (dark?'grass':'ground'), cv:0 });
+
+      // 기둥 (더 높은 트렁크)
+      if (inTrunk && dark) {
+        for (let h=1; h<=TRUNK_H; h++)
+          blocks.push({ x, z, y:h, type:'trunk', cv:0 });
+      }
+
+      // 캐노피 (각도 기반 가지 효과 + 높낮이 변화)
+      if (inCan && !inTrunk) {
+        const tVal  = 1 - dist/CANOPY_R;
+
+        // 5개 방향으로 뻗는 가지 효과
+        const angle      = Math.atan2(dz, dx);
+        const BRANCH_N   = 5;
+        const nearBranch = Math.round(angle / (Math.PI*2/BRANCH_N)) * (Math.PI*2/BRANCH_N);
+        const branchAlign = Math.max(0, Math.cos(angle - nearBranch)); // 1=가지방향, 0=중간
+        const branchBoost = Math.round(branchAlign * 4 * tVal);        // 최대 +4 층
+
+        // 거리 기반 돔 + 가지 보너스
+        const baseDome = Math.max(1, Math.round(MAX_DOME * (0.18 + 0.82*tVal*tVal)));
+        const dome     = baseDome + branchBoost;
+
+        const rnd        = seededRand(x, z, 1);
+        const fillThresh = 0.22 + 0.55*tVal;
+
+        if (dark || rnd < fillThresh) {
+          const baseY  = TRUNK_H;
+          // 더 다양한 높낮이: 0~3 jitter
+          const jitter = Math.round(seededRand(x, z, 2) * 3);
+          for (let h=0; h<dome; h++) {
+            // 위로 갈수록 좁아지는 확률적 희박화
+            const shrinkT   = h / Math.max(dome, 1);
+            const shrinkRnd = seededRand(x, z, h*17+11);
+            if (shrinkRnd > shrinkT * 0.55) {
+              const cv = Math.floor(seededRand(x, z, h*9+3)*5);
+              blocks.push({ x, z, y:baseY+h+jitter, type:'canopy', cv });
+            }
+          }
+        }
+      }
+
+      // 기둥 상단 → 캐노피 자연스러운 연결 (더 넓은 범위)
+      if (inTrunk && dark) {
+        for (let h=TRUNK_H-3; h<=TRUNK_H+3; h++) {
+          const cv = Math.floor(seededRand(x, z, h+5)*5);
+          blocks.push({ x, z, y:h, type:'canopy', cv });
+        }
+      }
+    }
+  }
+
+  // 화가 알고리즘 정렬
+  blocks.sort((a,b) => {
+    const d = (a.x+a.z) - (b.x+b.z);
+    return d !== 0 ? d : a.y - b.y;
+  });
+
+  return blocks;
+}
+
+function buildTreePosSet() {
+  treePosSet = new Set();
+  if (allBlocks) allBlocks.forEach(b => treePosSet.add(`${b.x},${b.z}`));
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 블록 색상
+// ═══════════════════════════════════════════════════════════════
+function getBlockColors(block, themeKey) {
+  const t = THEMES[themeKey];
+  const { type, cv } = block;
+  if (type === 'trunk') return { top:t.trunkTop, left:t.trunkL, right:t.trunkR };
+  if (type === 'ground') return { top:t.groundTop, left:t.groundL, right:t.groundR };
+  if (type === 'grass') {
+    const g = customGrass || t.grassDefault;
+    return { top:g, left:shadeHex(g,0.76), right:shadeHex(g,0.60) };
+  }
+  if (type === 'canopy') {
+    const base = t.canopyVars[cv % t.canopyVars.length];
+    return { top:base, left:shadeHex(base,0.76), right:shadeHex(base,0.60) };
+  }
+  return { top:'#AAA', left:'#888', right:'#666' };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 아이소메트릭 파라미터 (자동 중앙 정렬)
+// ═══════════════════════════════════════════════════════════════
+function calcIsoParams(N) {
+  const HW = Math.max(5, Math.floor(W * 0.38 / N));
+  const HH = Math.max(3, Math.floor(HW * 0.50));
+  const BH = Math.max(5, Math.floor(HH * 2.4));
+
+  // 나무 화면 범위 계산 (OY=0 기준)
+  const isoTop = (N-1)*HH - MAX_Y*BH;  // 캐노피 상단 (중심)
+  const isoBot = 2*(N-1)*HH + BH;       // 지면 하단 (먼 코너)
+  const treeCenterY = (isoTop + isoBot) / 2;
+  const OY = H/2 - treeCenterY;
+
+  return { HW, HH, BH, OX: W/2, OY };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 평면 QR 파라미터
+// ═══════════════════════════════════════════════════════════════
+function calcFlatParams(N) {
+  const qz       = 4;               // quiet zone 모듈 수
+  const avail    = Math.min(W,H) - 80;
+  const totalN   = N + 2*qz;
+  const cell     = avail / totalN;
+  const qrW      = cell * N;
+  const qrSX     = (W - qrW) / 2;
+  const qrSY     = (H - qrW) / 2;
+  return { cell, qrSX, qrSY, qz };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 블록 그리기
+// ═══════════════════════════════════════════════════════════════
+function drawBlock(c, sx, sy, hw, hh, bh, col) {
+  if (hw < 0.5) return;
+  // 상단 면
+  c.beginPath();
+  c.moveTo(sx,    sy-hh);
+  c.lineTo(sx+hw, sy);
+  c.lineTo(sx,    sy+hh);
+  c.lineTo(sx-hw, sy);
+  c.closePath();
+  c.fillStyle = col.top;
+  c.fill();
+  // 왼쪽 면
+  if (bh > 0.5) {
+    c.beginPath();
+    c.moveTo(sx-hw, sy);
+    c.lineTo(sx,    sy+hh);
+    c.lineTo(sx,    sy+hh+bh);
+    c.lineTo(sx-hw, sy+bh);
+    c.closePath();
+    c.fillStyle = col.left;
+    c.fill();
+    // 오른쪽 면
+    c.beginPath();
+    c.moveTo(sx,    sy+hh);
+    c.lineTo(sx+hw, sy);
+    c.lineTo(sx+hw, sy+bh);
+    c.lineTo(sx,    sy+hh+bh);
+    c.closePath();
+    c.fillStyle = col.right;
+    c.fill();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 3D 나무 렌더링 (오프스크린 + 드래그 회전 지원)
+// ═══════════════════════════════════════════════════════════════
+function render3D(c, blocks, themeKey, N, angle) {
+  angle = angle || 0;
+  const t    = THEMES[themeKey];
+  const grad = c.createLinearGradient(0,0,0,H);
+  t.bgStops.forEach((col,i) => grad.addColorStop(i/(t.bgStops.length-1), col));
+  c.fillStyle = grad;
+  c.fillRect(0,0,W,H);
+
+  const { HW, HH, BH, OX, OY } = calcIsoParams(N);
+  const cx = (N-1)/2, cz = (N-1)/2;
+  const cosA = Math.cos(angle), sinA = Math.sin(angle);
+
+  // 회전 적용 후 깊이 기준 재정렬
+  const rotated = blocks.map(b => {
+    const dx = b.x - cx, dz = b.z - cz;
+    const rx = cx + dx*cosA - dz*sinA;
+    const rz = cz + dx*sinA + dz*cosA;
+    return { ...b, rx, rz };
+  });
+  rotated.sort((a, b) => {
+    const d = (a.rx + a.rz) - (b.rx + b.rz);
+    return d !== 0 ? d : a.y - b.y;
+  });
+
+  rotated.forEach(b => {
+    const sx = (b.rx - b.rz)*HW + OX;
+    const sy = (b.rx + b.rz)*HH - b.y*BH + OY;
+    if (sx < -80 || sx > W+80 || sy < -300 || sy > H+80) return;
+    drawBlock(c, sx, sy, HW, HH, BH, getBlockColors(b, themeKey));
+  });
+}
+
+// 드래그 중 실시간 3D 렌더
+function renderLive3D() {
+  if (!allBlocks || !qrMatrix) return;
+  render3D(ctx, allBlocks, currentTheme, qrMatrix.length, rotAngle);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 평면 QR 코드 렌더링 (테마 + 잔디 색상 반영)
+// ═══════════════════════════════════════════════════════════════
+function renderFlat(c, matrix, themeKey) {
+  const t    = THEMES[themeKey];
+  const N    = matrix.length;
+  const { cell, qrSX, qrSY, qz } = calcFlatParams(N);
+  const grassColor = customGrass || t.grassDefault;
+
+  // 배경 ①: 3D 뷰와 동일한 테마 그라디언트
+  const bgGrad = c.createLinearGradient(0,0,0,H);
+  t.bgStops.forEach((col,i) => bgGrad.addColorStop(i/(t.bgStops.length-1), col));
+  c.fillStyle = bgGrad;
+  c.fillRect(0,0,W,H);
+
+  // 배경 ②: 하단에 잔디 색상 오버레이 (자연스럽게 반영)
+  const [gr,gg,gb] = hexToRgb(grassColor);
+  const grassGrad  = c.createLinearGradient(0, H*0.55, 0, H);
+  grassGrad.addColorStop(0, 'rgba(0,0,0,0)');
+  grassGrad.addColorStop(1, `rgba(${gr},${gg},${gb},0.30)`);
+  c.fillStyle = grassGrad;
+  c.fillRect(0,0,W,H);
+
+  // 흰 카드 (quiet zone 포함)
+  const cardPad = 12;
+  const cardX   = qrSX - qz*cell - cardPad;
+  const cardY   = qrSY - qz*cell - cardPad;
+  const cardW   = cell*N + qz*cell*2 + cardPad*2;
+  c.shadowColor   = 'rgba(0,0,0,0.14)';
+  c.shadowBlur    = 22;
+  c.shadowOffsetY = 6;
+  c.fillStyle = '#ffffff';
+  roundRectFill(c, cardX, cardY, cardW, cardW, 14);
+  c.shadowColor = 'transparent';
+  c.shadowBlur  = 0;
+  c.shadowOffsetY = 0;
+
+  // QR 모듈: 구역별 색상 분리 (나무=qrFill / 잔디=grassColor)
+  const cx_f    = (N-1)/2, cz_f = (N-1)/2;
+  const TRUNK_R_f  = N * 0.07;
+  const CANOPY_R_f = N * 0.45;
+
+  for (let row=0; row<N; row++) {
+    for (let col=0; col<N; col++) {
+      if (!matrix[row][col]) continue;
+
+      // 구역 판별
+      const ddx  = col - cx_f, ddz = row - cz_f;
+      const dist = Math.sqrt(ddx*ddx + ddz*ddz);
+      c.fillStyle = dist > CANOPY_R_f ? grassColor : t.qrFill;
+
+      const px = Math.round(qrSX + col*cell);
+      const py = Math.round(qrSY + row*cell);
+      const pw = Math.round(qrSX + (col+1)*cell) - px;
+      const ph = Math.round(qrSY + (row+1)*cell) - py;
+      c.fillRect(px, py, pw, ph);
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 라운드 사각형 헬퍼
+// ═══════════════════════════════════════════════════════════════
+function roundRectFill(c, x, y, w, h, r) {
+  c.beginPath();
+  c.moveTo(x+r, y);
+  c.arcTo(x+w, y,   x+w, y+h, r);
+  c.arcTo(x+w, y+h, x,   y+h, r);
+  c.arcTo(x,   y+h, x,   y,   r);
+  c.arcTo(x,   y,   x+w, y,   r);
+  c.closePath();
+  c.fill();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 실시간 모핑 렌더링 (3D ↔ flat 전환 애니메이션)
+// ═══════════════════════════════════════════════════════════════
+function renderLiveMorph(c, rawProg) {
+  if (!allBlocks || !qrMatrix) return;
+  const N  = qrMatrix.length;
+  const t  = THEMES[currentTheme];
+  // 드래그 직접 제어 시 easeInOut 없이 rawProg 직접 사용
+  const ep = clamp(rawProg, 0, 1);
+
+  // 2단계: 0→0.5 높이 붕괴 / 0.5→1 위치 재배열
+  const collapse  = easeInOut(clamp(ep*2,     0, 1));
+  const rearrange = easeInOut(clamp(ep*2-1,   0, 1));
+
+  const { HW, HH, BH, OX, OY } = calcIsoParams(N);
+  const { cell, qrSX, qrSY, qz } = calcFlatParams(N);
+
+  // 회전 변수
+  const cx_v   = (N-1)/2, cz_v = (N-1)/2;
+  const cosA   = Math.cos(rotAngle), sinA = Math.sin(rotAngle);
+  const grassColor = customGrass || t.grassDefault;
+  const [gr,gg,gb] = hexToRgb(grassColor);
+
+  c.clearRect(0,0,W,H);
+
+  // ── 배경 ─────────────────────────────────────────
+  if (rearrange < 1) {
+    const grad = c.createLinearGradient(0,0,0,H);
+    t.bgStops.forEach((col,i) => grad.addColorStop(i/(t.bgStops.length-1), col));
+    c.globalAlpha = 1 - rearrange;
+    c.fillStyle = grad;
+    c.fillRect(0,0,W,H);
+    c.globalAlpha = 1;
+  }
+  if (rearrange > 0) {
+    c.globalAlpha = rearrange;
+    // 테마 배경
+    const bgGrad = c.createLinearGradient(0,0,0,H);
+    t.bgStops.forEach((col,i) => bgGrad.addColorStop(i/(t.bgStops.length-1), col));
+    c.fillStyle = bgGrad;
+    c.fillRect(0,0,W,H);
+    // 잔디 오버레이
+    const gGrad = c.createLinearGradient(0, H*0.55, 0, H);
+    gGrad.addColorStop(0, 'rgba(0,0,0,0)');
+    gGrad.addColorStop(1, `rgba(${gr},${gg},${gb},0.30)`);
+    c.fillStyle = gGrad;
+    c.fillRect(0,0,W,H);
+    // 흰 카드
+    const cardPad = 12;
+    const cardX = qrSX - qz*cell - cardPad;
+    const cardY = qrSY - qz*cell - cardPad;
+    const cardW = cell*N + qz*cell*2 + cardPad*2;
+    c.fillStyle = '#ffffff';
+    c.shadowColor = 'rgba(0,0,0,0.12)'; c.shadowBlur = 18; c.shadowOffsetY = 5;
+    roundRectFill(c, cardX, cardY, cardW, cardW, 14);
+    c.shadowColor = 'transparent'; c.shadowBlur = 0; c.shadowOffsetY = 0;
+    c.globalAlpha = 1;
+  }
+
+  // ── 블록 모핑 (rotAngle 적용) ─────────────────────
+  allBlocks.forEach(b => {
+    // 회전 적용
+    const dx = b.x - cx_v, dz = b.z - cz_v;
+    const rx = cx_v + dx*cosA - dz*sinA;
+    const rz = cz_v + dx*sinA + dz*cosA;
+
+    // 1단계: y 붕괴
+    const effectiveY = b.y * (1 - collapse);
+    const isoX = (rx - rz)*HW + OX;
+    const isoY = (rx + rz)*HH - effectiveY*BH + OY;
+
+    // 2단계: 평면 위치로 이동
+    const flatX = qrSX + b.x*cell + cell/2;
+    const flatY = qrSY + b.z*cell + cell/2;
+
+    const sx = lerp(isoX, flatX, rearrange);
+    const sy = lerp(isoY, flatY, rearrange);
+
+    if (sx < -80 || sx > W+80 || sy < -300 || sy > H+80) return;
+
+    const hw     = lerp(HW,   cell*0.52, rearrange);
+    const hh_val = lerp(HH,   Math.max(1, cell*0.22), rearrange);
+    const bh_val = lerp(BH*(1-collapse), 0, rearrange);
+
+    const tCol   = getBlockColors(b, currentTheme);
+    const isDark = qrMatrix[b.z] && qrMatrix[b.z][b.x];
+
+    // 밝은 모듈 기본 alpha
+    const baseAlpha = !isDark ? clamp(1 - rearrange*2.5, 0, 1) : 1;
+
+    // 블록 타입별 목표 색상: 잔디=grassColor, 나무/기둥=qrFill
+    const flatTargetColor = (b.type === 'grass')
+      ? grassColor
+      : (isDark ? t.qrFill : tCol.top);
+    const qrTop   = flatTargetColor;
+    const qrLeft  = isDark ? shadeHex(flatTargetColor, 0.80) : tCol.left;
+    const qrRight = isDark ? shadeHex(flatTargetColor, 0.65) : tCol.right;
+    const topCol   = rearrange < 0.05 ? tCol.top   : lerpColor(tCol.top,   qrTop,   rearrange);
+    const leftCol  = rearrange < 0.05 ? tCol.left  : lerpColor(tCol.left,  qrLeft,  rearrange);
+    const rightCol = rearrange < 0.05 ? tCol.right : lerpColor(tCol.right, qrRight, rearrange);
+
+    // rearrange 0.55→0.85 구간: 마름모 → 정사각형으로 크로스페이드
+    const SQ_START = 0.55, SQ_END = 0.85;
+    const sqT      = clamp((rearrange - SQ_START) / (SQ_END - SQ_START), 0, 1);
+
+    // 마름모(drawBlock) — sqT가 높아질수록 페이드 아웃
+    if (sqT < 1) {
+      c.globalAlpha = baseAlpha * (1 - sqT);
+      drawBlock(c, sx, sy, hw, hh_val, bh_val, { top:topCol, left:leftCol, right:rightCol });
+    }
+
+    // 정사각형(fillRect) — sqT가 높아질수록 페이드 인 (다크 모듈만)
+    if (sqT > 0 && isDark) {
+      c.globalAlpha = baseAlpha * sqT;
+      c.fillStyle = topCol;
+      const sqX = Math.round(qrSX + b.x * cell);
+      const sqY = Math.round(qrSY + b.z * cell);
+      const sqW = Math.round(cell);
+      c.fillRect(sqX, sqY, sqW, sqW);
+    }
+
+    c.globalAlpha = 1;
+  });
+
+  // ── 나무에 없는 QR 모듈 페이드인 (구역별 색상) ───────
+  if (rearrange > 0.4 && treePosSet) {
+    const alpha    = clamp((rearrange - 0.4) / 0.6, 0, 1);
+    const CANOPY_R_m = N * 0.45;
+    c.globalAlpha  = alpha;
+    for (let z=0; z<N; z++) {
+      for (let x=0; x<N; x++) {
+        if (!qrMatrix[z][x]) continue;
+        if (treePosSet.has(`${x},${z}`)) continue;
+        // 구역 판별 → 잔디 or 나무 색상
+        const ddx  = x - cx_v, ddz = z - cz_v;
+        const dist = Math.sqrt(ddx*ddx + ddz*ddz);
+        c.fillStyle = dist > CANOPY_R_m ? grassColor : t.qrFill;
+        const px = Math.round(qrSX + x*cell);
+        const py = Math.round(qrSY + z*cell);
+        const pw = Math.round(qrSX + (x+1)*cell) - px;
+        const ph = Math.round(qrSY + (z+1)*cell) - py;
+        c.fillRect(px, py, pw, ph);
+      }
+    }
+    c.globalAlpha = 1;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 오프스크린 캔버스
+// ═══════════════════════════════════════════════════════════════
+function makeOff() {
+  const oc = document.createElement('canvas');
+  oc.width = W*dpr; oc.height = H*dpr;
+  const c = oc.getContext('2d');
+  c.scale(dpr, dpr);
+  return { canvas: oc, ctx: c };
+}
+function buildOffscreens() {
+  if (!qrMatrix || !allBlocks) return;
+  const N = qrMatrix.length;
+  const { canvas:tc, ctx:tc2 } = makeOff();
+  render3D(tc2, allBlocks, currentTheme, N, rotAngle);  // rotAngle 반영
+  offTree = tc;
+  const { canvas:fc, ctx:fc2 } = makeOff();
+  renderFlat(fc2, qrMatrix, currentTheme);
+  offFlat = fc;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 합성 / 애니메이션
+// ═══════════════════════════════════════════════════════════════
+function drawComposite() {
+  if (!offTree || !offFlat) return;
+
+  const ep = clamp(fadeProgress, 0, 1);
+  const LIVE_T = 0.02;
+
+  if (ep < LIVE_T) {
+    if (isDragging) {
+      renderLive3D();          // 드래그 중 → 실시간 회전 렌더
+    } else {
+      ctx.clearRect(0,0,W,H);
+      ctx.drawImage(offTree, 0,0, W*dpr,H*dpr, 0,0, W,H);
+    }
+  } else if (ep > 1 - LIVE_T) {
+    ctx.clearRect(0,0,W,H);
+    ctx.drawImage(offFlat, 0,0, W*dpr,H*dpr, 0,0, W,H);
+  } else {
+    // 드래그 중 morph 중간 → 실시간 렌더링
+    ctx.clearRect(0,0,W,H);
+    renderLiveMorph(ctx, fadeProgress);
+  }
+}
+
+function animateFrame() {
+  fadeProgress += (fadeTarget - fadeProgress) * 0.07;
+
+  if (Math.abs(fadeTarget - fadeProgress) < 0.003) {
+    fadeProgress = fadeTarget;
+    drawComposite();
+    animId = null;
+    return;
+  }
+  drawComposite();
+  animId = requestAnimationFrame(animateFrame);
+}
+function startFade() {
+  if (animId) cancelAnimationFrame(animId);
+  animId = requestAnimationFrame(animateFrame);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// UI
+// ═══════════════════════════════════════════════════════════════
+function updateUI(themeKey) {
+  const t = THEMES[themeKey];
+  document.body.style.background = t.bg;
+  document.documentElement.style.setProperty('--accent', t.accent);
+  document.querySelectorAll('.tree-btn').forEach(btn =>
+    btn.classList.toggle('active', btn.dataset.tree === themeKey)
+  );
+  // 잔디 피커를 현재 테마 기본값으로 설정 (커스텀 없을 때)
+  if (!customGrass) {
+    document.getElementById('grass-color').value = t.grassDefault;
+  }
+}
+function updateBadge() {
+  const b = document.getElementById('mode-badge');
+  b.textContent = viewMode === '3d'
+    ? '🌳 3D 나무  ·  좌우 드래그 회전  ·  위로 드래그 → QR'
+    : '📱 QR 코드  ·  아래로 드래그 → 3D 나무';
+  // 3D 모드에서 grab 커서
+  document.getElementById('canvas-wrap').style.cursor =
+    viewMode === '3d' ? 'grab' : 'pointer';
+}
+function setLoading(on) {
+  document.getElementById('loading').classList.toggle('show', on);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// QR 생성
+// ═══════════════════════════════════════════════════════════════
+function generateAndDraw() {
+  const text = document.getElementById('url-input').value.trim();
+  if (!text) return;
+
+  setLoading(true);
+  setTimeout(() => {
+    try {
+      qrMatrix  = generateMatrix(text);
+      allBlocks = generateBlocks(qrMatrix);
+      buildTreePosSet();
+      buildOffscreens();
+
+      // 3D로 초기화
+      viewMode       = '3d';
+      fadeProgress   = 0;
+      fadeTarget     = 0;
+      drawComposite();
+      updateBadge();
+
+      // 0.5초 후 자동으로 3D → QR 모핑
+      setTimeout(() => {
+        viewMode    = 'flat';
+        fadeTarget  = 1;
+        updateBadge();
+        startFade();
+      }, 500);
+
+    } catch(e) {
+      alert('QR 생성 오류: 텍스트가 너무 길거나 지원하지 않는 형식입니다.');
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  }, 30);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 이벤트 핸들러
+// ═══════════════════════════════════════════════════════════════
+
+// QR 생성 버튼 + 엔터
+document.getElementById('gen-btn').addEventListener('click', generateAndDraw);
+document.getElementById('url-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') generateAndDraw();
+});
+
+// ── 실시간 입력 (디바운스 350ms) ────────────────────
+document.getElementById('url-input').addEventListener('input', () => {
+  clearTimeout(realtimeTimer);
+  realtimeTimer = setTimeout(() => {
+    const text = document.getElementById('url-input').value.trim();
+    if (!text) return;
+    try {
+      qrMatrix  = generateMatrix(text);
+      allBlocks = generateBlocks(qrMatrix);
+      buildTreePosSet();
+      buildOffscreens();
+      drawComposite(); // 현재 뷰 모드 유지, 애니메이션 없이 즉시 반영
+    } catch(e) { /* 타이핑 중 오류 무시 */ }
+  }, 350);
+});
+
+// ── 드래그 회전 (마우스) ────────────────────────────
+const canvasWrap = document.getElementById('canvas-wrap');
+let dragMoved = false;
+
+canvasWrap.addEventListener('mousedown', e => {
+  if (!offTree || !offFlat) return;
+  isDragging  = true;
+  dragMoved   = false;
+  lastDragX   = e.clientX;
+  lastDragY   = e.clientY;
+  if (animId) { cancelAnimationFrame(animId); animId = null; }
+  canvasWrap.style.cursor = 'grabbing';
+  e.preventDefault();
+});
+
+document.addEventListener('mousemove', e => {
+  if (!isDragging) return;
+  const dx = e.clientX - lastDragX;
+  const dy = e.clientY - lastDragY;
+  if (Math.abs(dx) > 1 || Math.abs(dy) > 1) dragMoved = true;
+
+  // 수직 드래그: 위로 올리면(dy < 0) fadeProgress 증가 → QR 뷰
+  //              아래로 내리면(dy > 0) fadeProgress 감소 → 3D 뷰
+  fadeProgress = clamp(fadeProgress + dy * TILT_SENS, 0, 1);
+
+  // 수평 드래그: fadeProgress가 낮을 때만 회전
+  if (fadeProgress < 0.15) {
+    rotAngle -= dx * DRAG_SENS;
+  }
+
+  lastDragX = e.clientX;
+  lastDragY = e.clientY;
+  drawComposite();
+});
+
+document.addEventListener('mouseup', () => {
+  if (!isDragging) return;
+  isDragging = false;
+  canvasWrap.style.cursor = 'grab';
+  // snap: 0.5 기준으로 완전 3D or 완전 QR로 스냅
+  if (qrMatrix) {
+    fadeTarget = fadeProgress > 0.5 ? 1 : 0;
+    viewMode   = fadeTarget === 1 ? 'flat' : '3d';
+    updateBadge();
+    if (fadeTarget === 0) {
+      buildOffscreens();
+    }
+    startFade();
+  }
+});
+
+// ── 드래그 회전 (터치) ──────────────────────────────
+canvasWrap.addEventListener('touchstart', e => {
+  if (!offTree || !offFlat) return;
+  isDragging = true;
+  dragMoved  = false;
+  lastDragX  = e.touches[0].clientX;
+  lastDragY  = e.touches[0].clientY;
+  if (animId) { cancelAnimationFrame(animId); animId = null; }
+}, { passive: true });
+
+document.addEventListener('touchmove', e => {
+  if (!isDragging) return;
+  const dx = e.touches[0].clientX - lastDragX;
+  const dy = e.touches[0].clientY - lastDragY;
+  if (Math.abs(dx) > 1 || Math.abs(dy) > 1) dragMoved = true;
+
+  fadeProgress = clamp(fadeProgress + dy * TILT_SENS, 0, 1);
+
+  if (fadeProgress < 0.15) {
+    rotAngle -= dx * DRAG_SENS;
+  }
+
+  lastDragX = e.touches[0].clientX;
+  lastDragY = e.touches[0].clientY;
+  drawComposite();
+}, { passive: true });
+
+document.addEventListener('touchend', () => {
+  if (!isDragging) return;
+  isDragging = false;
+  if (qrMatrix) {
+    fadeTarget = fadeProgress > 0.5 ? 1 : 0;
+    viewMode   = fadeTarget === 1 ? 'flat' : '3d';
+    updateBadge();
+    if (fadeTarget === 0) {
+      buildOffscreens();
+    }
+    startFade();
+  }
+});
+
+// ── 캔버스 클릭 → 뷰 전환 (드래그와 구분) ─────────
+canvasWrap.addEventListener('click', e => {
+  if (dragMoved) { dragMoved = false; return; } // 드래그 후 클릭 무시
+  if (!offTree) return;
+  if (viewMode === '3d') {
+    viewMode = 'flat'; fadeTarget = 1;
+  } else {
+    viewMode = '3d';   fadeTarget = 0;
+  }
+  updateBadge();
+  startFade();
+});
+
+// 나무 종류 선택
+document.querySelectorAll('.tree-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    currentTheme = btn.dataset.tree;
+    updateUI(currentTheme);
+    if (qrMatrix) {
+      setLoading(true);
+      setTimeout(() => {
+        buildOffscreens();
+        drawComposite();
+        setLoading(false);
+      }, 20);
+    }
+  });
+});
+
+// 잔디 색상 커스텀
+document.getElementById('grass-color').addEventListener('input', e => {
+  customGrass = e.target.value;
+  if (qrMatrix) {
+    buildOffscreens();
+    drawComposite();
+  }
+});
+document.getElementById('grass-reset').addEventListener('click', () => {
+  customGrass = null;
+  const t = THEMES[currentTheme];
+  document.getElementById('grass-color').value = t.grassDefault;
+  if (qrMatrix) {
+    buildOffscreens();
+    drawComposite();
+  }
+});
+
+// 이미지 저장
+document.getElementById('dl-btn').addEventListener('click', () => {
+  const src = viewMode === 'flat' ? offFlat : offTree;
+  if (!src) return;
+  const a = document.createElement('a');
+  a.download = `capstone-qr-${currentTheme}-${Date.now()}.png`;
+  a.href = src.toDataURL('image/png');
+  a.click();
+});
+
+// ═══════════════════════════════════════════════════════════════
+// 초기화
+// ═══════════════════════════════════════════════════════════════
+updateUI('cherry');
+generateAndDraw();
+</script>
+</body>
+</html>
