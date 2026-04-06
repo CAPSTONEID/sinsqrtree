@@ -926,7 +926,7 @@ function updateUI(themeKey) {
 function updateBadge() {
   const b = document.getElementById('mode-badge');
   b.textContent = viewMode === '3d'
-    ? '🌳 3D 나무  ·  좌우 드래그 회전  ·  위로 드래그 → QR'
+    ? '🌳 3D 나무  ·  좌우 드래그 회전  ·  위 드래그 or QR 생성 → QR'
     : '📱 QR 코드  ·  아래로 드래그 → 3D 나무';
   // 3D 모드에서 grab 커서
   document.getElementById('canvas-wrap').style.cursor =
@@ -951,20 +951,12 @@ function generateAndDraw() {
       buildTreePosSet();
       buildOffscreens();
 
-      // 3D로 초기화
+      // 3D 고정으로 초기화 (자동 QR 전환 없음)
       viewMode       = '3d';
       fadeProgress   = 0;
       fadeTarget     = 0;
       drawComposite();
       updateBadge();
-
-      // 0.5초 후 자동으로 3D → QR 모핑
-      setTimeout(() => {
-        viewMode    = 'flat';
-        fadeTarget  = 1;
-        updateBadge();
-        startFade();
-      }, 500);
 
     } catch(e) {
       alert('QR 생성 오류: 텍스트가 너무 길거나 지원하지 않는 형식입니다.');
@@ -980,9 +972,26 @@ function generateAndDraw() {
 // ═══════════════════════════════════════════════════════════════
 
 // QR 생성 버튼 + 엔터
-document.getElementById('gen-btn').addEventListener('click', generateAndDraw);
+document.getElementById('gen-btn').addEventListener('click', () => {
+  generateAndDraw();
+  // 생성 완료 후 QR 뷰로 전환
+  setTimeout(() => {
+    if (qrMatrix) {
+      viewMode = 'flat'; fadeTarget = 1;
+      updateBadge(); startFade();
+    }
+  }, 80);
+});
 document.getElementById('url-input').addEventListener('keydown', e => {
-  if (e.key === 'Enter') generateAndDraw();
+  if (e.key === 'Enter') {
+    generateAndDraw();
+    setTimeout(() => {
+      if (qrMatrix) {
+        viewMode = 'flat'; fadeTarget = 1;
+        updateBadge(); startFade();
+      }
+    }, 80);
+  }
 });
 
 // ── 실시간 입력 (디바운스 350ms) ────────────────────
@@ -1093,17 +1102,9 @@ document.addEventListener('touchend', () => {
   }
 });
 
-// ── 캔버스 클릭 → 뷰 전환 (드래그와 구분) ─────────
-canvasWrap.addEventListener('click', e => {
-  if (dragMoved) { dragMoved = false; return; } // 드래그 후 클릭 무시
-  if (!offTree) return;
-  if (viewMode === '3d') {
-    viewMode = 'flat'; fadeTarget = 1;
-  } else {
-    viewMode = '3d';   fadeTarget = 0;
-  }
-  updateBadge();
-  startFade();
+// ── 캔버스 클릭 → 드래그 플래그 초기화만 ────────────
+canvasWrap.addEventListener('click', () => {
+  dragMoved = false;
 });
 
 // 나무 종류 선택
